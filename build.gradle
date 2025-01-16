@@ -1,0 +1,86 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.4.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'checkstyle'
+    id 'pmd'
+}
+
+group = 'com.sample'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+jar {
+    enabled(false)
+}
+
+bootJar {
+    archiveBaseName = 'app'
+    archiveFileName = 'app.jar'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    // Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    runtimeOnly 'org.springframework.boot:spring-boot-starter-tomcat'
+}
+
+// JUnit Platform 사용하도록 설정
+test {
+    useJUnitPlatform()
+}
+
+// 빌드 시 테스트가 실행되지 않도록 설정
+tasks.withType(Test).configureEach {
+    enabled = false
+}
+
+// Checkstyle 설정
+checkstyle {
+    configFile = file("${rootDir}/config/checkstyle/google-checkstyle.xml")
+    configProperties = ["suppressionFile": project(':').file('config/checkstyle/checkstyle-suppressions.xml')]
+    ignoreFailures = false
+    maxWarnings = 0
+    reportsDir = file(project.layout.buildDirectory.dir("checkstyle-output").get().asFile.path)
+    toolVersion = '10.20.0'
+}
+
+checkstyleMain {
+    reports {
+        xml.outputLocation = file("${checkstyle.reportsDir}/checkstyle-report.xml")
+    }
+}
+
+// PMD 설정
+pmd {
+    ruleSetFiles = files("${rootDir}/config/pmd/custom-ruleset.xml")
+    ruleSets = []
+    consoleOutput = true
+    ignoreFailures = false
+    reportsDir = file(project.layout.buildDirectory.dir("pmd-output").get().asFile.path)
+    toolVersion = '7.7.0'
+}
+
+pmdMain {
+    reports {
+        xml.outputLocation = file("${pmd.reportsDir}/pmd-report.xml")
+        xml.required = true
+    }
+}
