@@ -1,0 +1,5 @@
+# 암호화 설정
+jasypt:
+  encryptor:
+    bean: jasyptStringEncryptor
+    key: 62003C8E05176F6DBBFB8335095EC53ED2A72F7BB6C5823E9DE5A5D0E934DC15

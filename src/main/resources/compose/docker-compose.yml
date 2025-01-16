@@ -1,0 +1,18 @@
+# compose 파일 버전
+version: '3'
+services:
+  # MySQL 서비스
+  mysql:
+    image: mysql:8.0
+    restart: always
+    container_name: mysql
+    ports:
+      - "3306:3306" # 호스트와 컨테이너의 MySQL 포트 매핑
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4 # 문자셋 설정
+      - --collation-server=utf8mb4_unicode_ci  # 콜레이션 설정
+    volumes:
+      - ./data/mysql/:/var/lib/mysql

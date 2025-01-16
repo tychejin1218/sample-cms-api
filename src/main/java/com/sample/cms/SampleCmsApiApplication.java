@@ -9,5 +9,4 @@ public class SampleCmsApiApplication {
   public static void main(String[] args) {
     SpringApplication.run(SampleCmsApiApplication.class, args);
   }
-
 }

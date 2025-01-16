@@ -1,0 +1,39 @@
+# Main(PostgreSQL) Datasource
+main:
+  datasource:
+    writer:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/sample?serverTimezone=UTC&characterEncoding=UTF-8
+      read-only: false
+      username: sample
+      password: ENC(hnOQOnoxD98woMJHjTqKoWU88psPIVQc36KeYryd8oAydOgfAbtX+kooCbQmsT2u)
+      poolName: mysqlDbConnectionPool
+      maximum-pool-size: 5
+      minimum-idle: 5
+      idle-timeout: 10000
+      max-life-time: 580000
+      connection-test-query: SELECT 1
+    reader:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://localhost:3306/sample?serverTimezone=UTC&characterEncoding=UTF-8
+      read-only: true
+      username: sample
+      password: ENC(hnOQOnoxD98woMJHjTqKoWU88psPIVQc36KeYryd8oAydOgfAbtX+kooCbQmsT2u)
+      poolName: mysqlDbConnectionPool
+      maximum-pool-size: 5
+      minimum-idle: 5
+      idle-timeout: 10000
+      max-life-time: 580000
+      connection-test-query: SELECT 1
+  # JPA 설정
+  jpa:
+    generate-ddl: false # 데이터베이스 테이블을 자동으로 생성
+    show-sql: false # 콘솔에 실행되는 테이블 생성 DDL을 출력
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    properties:
+      hibernate:
+        show-sql: true
+        format-sql: true
+        highlight-sql: true
+        use-sql-comments: true
+        physical-naming-strategy: com.example.boilerplate.config.MainJpaNamingStrategy
