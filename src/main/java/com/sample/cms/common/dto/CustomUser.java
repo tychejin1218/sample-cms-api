@@ -23,7 +23,7 @@ public class CustomUser extends User {
   private transient CmsUser cmsUser;
 
   public CustomUser(CmsUser cmsUser) {
-    super(cmsUser.getUsername(), cmsUser.getPassword(), getAuthorities(cmsUser.getRoles()));
+    super(cmsUser.getUserName(), cmsUser.getPassword(), getAuthorities(cmsUser.getRoles()));
     this.cmsUser = cmsUser;
   }
 

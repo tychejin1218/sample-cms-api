@@ -67,7 +67,7 @@ class AuthServiceTest {
 
     // Then
     assertAll(
-        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_REQUEST)
+        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_CREDENTIALS)
     );
   }
 
@@ -89,7 +89,7 @@ class AuthServiceTest {
 
     // Then
     assertAll(
-        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_REQUEST)
+        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_CREDENTIALS)
     );
   }
 }

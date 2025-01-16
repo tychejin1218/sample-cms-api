@@ -44,14 +44,14 @@ public class JwtTokenProvider {
   /**
    * JWT 토큰 생성
    *
-   * @param subject 회원을 식별할 수 있는 유일한 값(Email)
-   * @param roles   회원 권한(ROLE_ADMIN, ROLE_USER)
+   * @param subject  회원을 식별할 수 있는 유일한 값(Email)
+   * @param roleList 회원 권한(ROLE_ADMIN, ROLE_USER)
    * @return 생성된 JWT 토큰
    */
-  public String createToken(String subject, List<String> roles) {
+  public String createToken(String subject, List<String> roleList) {
 
     Map<String, List<String>> claims = new HashMap<>();
-    claims.put("roles", roles);
+    claims.put("roleList", roleList);
 
     Date now = new Date();
     Date expiryDate = new Date(now.getTime() + TOKEN_VALID_TIME);

@@ -26,16 +26,16 @@ public class CmsUser {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Comment("기본 키") // 주석 추가
+  @Comment("기본 키")
   private Long id;
 
   @Column(name = "user_id", nullable = false, unique = true, length = 50)
   @Comment("사용자 ID (로그인 ID)")
   private String userId;
 
-  @Column(nullable = false, length = 100)
+  @Column(name = "user_name", nullable = false, length = 100)
   @Comment("사용자명")
-  private String username;
+  private String userName;
 
   @Column(nullable = false, length = 255)
   @Comment("암호화된 비밀번호")

@@ -19,10 +19,11 @@ public enum ApiStatus {
   FORBIDDEN_REQUEST("802", "허용되지 않은 요청입니다."),
   DUPLICATED_REQUEST("803", "중복된 요청입니다."),
   NOT_FOUND("804", "존재하지 않는 정보입니다."),
-  UNAUTHORIZED("805", "유효하지 않은 권한입니다."),
-  TOKEN_EXPIRED("806", "토큰이 만료되었습니다."),
-  INVALID_SIGNATURE("807", "토큰 서명이 유효하지 않습니다."),
-  INVALID_TOKEN("808", "유효하지 않은 토큰입니다."),
+  INVALID_CREDENTIALS("805", "아이디나 비밀번호가 올바르지 않습니다."),
+  UNAUTHORIZED("806", "유효하지 않은 권한입니다."),
+  TOKEN_EXPIRED("807", "토큰이 만료되었습니다."),
+  INVALID_SIGNATURE("808", "토큰 서명이 유효하지 않습니다."),
+  INVALID_TOKEN("809", "유효하지 않은 토큰입니다."),
 
   // Exception Handler 에러 코드
   INTERNAL_SERVER_ERROR("900", "내부 오류가 발생했습니다. 확인 후 다시 시도해주세요."),

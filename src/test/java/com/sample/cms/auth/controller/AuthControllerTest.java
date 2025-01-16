@@ -64,7 +64,7 @@ class AuthControllerTest {
   }
 
   @Transactional(readOnly = true)
-  @DisplayName("Login 실패 - 존재하지 않는 사용자 ID - Status:400, statusCode:801")
+  @DisplayName("Login 실패 - 존재하지 않는 사용자 ID - Status:400, statusCode:805")
   @Test
   void testAuthLoginFailureNonExistentUserId() throws Exception {
 
@@ -86,8 +86,8 @@ class AuthControllerTest {
     resultActions
         .andExpect(status().isBadRequest())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath("statusCode").value(ApiStatus.INVALID_REQUEST.getCode()))
-        .andExpect(jsonPath("message").value(ApiStatus.INVALID_REQUEST.getMessage()))
+        .andExpect(jsonPath("statusCode").value(ApiStatus.INVALID_CREDENTIALS.getCode()))
+        .andExpect(jsonPath("message").value(ApiStatus.INVALID_CREDENTIALS.getMessage()))
         .andExpect(jsonPath("message").isNotEmpty())
         .andExpect(jsonPath("method").value(HttpMethod.POST.toString()))
         .andExpect(jsonPath("timestamp").isNotEmpty())

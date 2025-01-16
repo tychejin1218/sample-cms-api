@@ -56,7 +56,7 @@ class CmsUserRepositoryTest {
     assertAll(
         () -> assertThat(optCmsUser).isPresent(),
         () -> assertThat(optCmsUser.get().getUserId()).isEqualTo(userId),
-        () -> assertThat(optCmsUser.get().getUsername()).isEqualTo(userName)
+        () -> assertThat(optCmsUser.get().getUserName()).isEqualTo(userName)
     );
   }
 
@@ -68,54 +68,6 @@ class CmsUserRepositoryTest {
 
     // Given & When
     Optional<CmsUser> optCmsUser = cmsUserRepository.findByUserId(nonExistentUserId);
-
-    // Then
-    assertAll(
-        () -> assertThat(optCmsUser).isNotPresent()
-    );
-  }
-
-  @Order(3)
-  @Transactional
-  @DisplayName("사용자 ID와 비밀번호로 조회 성공")
-  @Test
-  void testFindByUserIdAndPasswordSuccess() {
-
-    // Given & When
-    Optional<CmsUser> optCmsUser = cmsUserRepository.findByUserIdAndPassword(userId, password);
-
-    // Then
-    assertAll(
-        () -> assertThat(optCmsUser).isPresent(),
-        () -> assertThat(optCmsUser.get().getUserId()).isEqualTo(userId),
-        () -> assertThat(optCmsUser.get().getPassword()).isEqualTo(password) // 비밀번호도 확인
-    );
-  }
-
-  @Order(4)
-  @Transactional
-  @Test
-  @DisplayName("사용자 ID와 비밀번호로 조회 실패 - 비밀번호 불일치")
-  void testFindByUserIdAndPasswordFailureWrongPassword() {
-
-    // Given & When
-    Optional<CmsUser> optCmsUser = cmsUserRepository.findByUserIdAndPassword(userId, wrongPassword);
-
-    // Then
-    assertAll(
-        () -> assertThat(optCmsUser).isNotPresent()
-    );
-  }
-
-  @Order(5)
-  @Transactional
-  @Test
-  @DisplayName("사용자 ID와 비밀번호로 조회 실패 - 존재하지 않는 사용자 ID")
-  void testFindByUserIdAndPasswordFailureNonExistentUserId() {
-
-    // Given & When
-    Optional<CmsUser> optCmsUser = cmsUserRepository.findByUserIdAndPassword(nonExistentUserId,
-        password);
 
     // Then
     assertAll(
