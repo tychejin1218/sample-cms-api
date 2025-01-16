@@ -3,3 +3,7 @@ jasypt:
   encryptor:
     bean: jasyptStringEncryptor
     key: 1D1EF67829006025E729A4DEE5C3D845167D15471CBC85F086B5304E89A0D1E1
+
+# JWT 설정
+jwt:
+  secret-key: 868014c91189a6f5127195ef0ea961bfa91dddb72e2f67f41c48114cc1c94dde

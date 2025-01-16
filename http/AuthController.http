@@ -1,0 +1,8 @@
+### 로그인
+POST http://localhost:9091/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "password": "testpassword"
+}
