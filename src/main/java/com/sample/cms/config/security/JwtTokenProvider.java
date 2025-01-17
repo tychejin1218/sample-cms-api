@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtTokenProvider {
 
-  private static final long TOKEN_VALID_TIME = 1000L * 60 * 5; // 토큰 유효 시간 5분
+  private static final long ACCESS_TOKEN_VALID_TIME = 1000L * 60 * 5; // 토큰 유효 시간 5분
+  private static final long REFRESH_TOKEN_VALID_TIME = 1000L * 60 * 60 * 24 * 7; // 7일
 
   private final UserDetailsService userDetailsService;
   private final SecretKey secretKey;
@@ -54,11 +56,31 @@ public class JwtTokenProvider {
     claims.put("roleList", roleList);
 
     Date now = new Date();
-    Date expiryDate = new Date(now.getTime() + TOKEN_VALID_TIME);
+    Date expiryDate = new Date(now.getTime() + ACCESS_TOKEN_VALID_TIME);
 
     return Jwts.builder()
         .subject(subject)
         .claims(claims)
+        .issuedAt(now)
+        .expiration(expiryDate)
+        .signWith(secretKey, SIG.HS256)
+        .compact();
+  }
+
+  /**
+   * 리프레시 토큰 생성
+   *
+   * @param subject 사용자 식별자(ID 또는 Email)
+   * @return 생성된 리프레시 토큰
+   */
+  public String createRefreshToken(String subject) {
+
+    Date now = new Date();
+    Date expiryDate = new Date(now.getTime() + REFRESH_TOKEN_VALID_TIME);
+
+    // 리프레시 토큰 생성
+    return Jwts.builder()
+        .subject(subject)
         .issuedAt(now)
         .expiration(expiryDate)
         .signWith(secretKey, SIG.HS256)
@@ -102,6 +124,28 @@ public class JwtTokenProvider {
   }
 
   /**
+   * 리프레시 토큰의 유효성 확인
+   *
+   * @param token 리프레시 토큰
+   * @return 리프레시 토큰이 유효하면 true, 그렇지 않으면 false
+   */
+  public boolean validateRefreshToken(String token) {
+    try {
+      Jwts.parser()
+          .verifyWith(secretKey)
+          .build()
+          .parseSignedClaims(token);
+      return true;
+    } catch (ExpiredJwtException e) {
+      log.error("Expired Refresh Token: {}", e.getMessage());
+      throw new ApiException(HttpStatus.BAD_REQUEST, ApiStatus.REFRESH_TOKEN_EXPIRED);
+    } catch (JwtException | IllegalArgumentException e) {
+      log.error("Invalid Refresh Token: {}", e.getMessage());
+      throw new ApiException(HttpStatus.BAD_REQUEST, ApiStatus.INVALID_REFRESH_TOKEN);
+    }
+  }
+
+  /**
    * JWT 토큰으로부터 인증 정보 추출
    *
    * @param token JWT 토큰
@@ -126,5 +170,28 @@ public class JwtTokenProvider {
         .parseSignedClaims(token)
         .getPayload()
         .getSubject();
+  }
+
+  /**
+   * 리프레시 토큰을 통해 새로운 액세스 토큰 발급
+   *
+   * @param refreshToken 리프레시 토큰
+   * @return 새로운 액세스 토큰
+   */
+  public String reissueAccessToken(String refreshToken) {
+    if (!validateRefreshToken(refreshToken)) {
+      throw new ApiException(HttpStatus.BAD_REQUEST, ApiStatus.INVALID_REFRESH_TOKEN);
+    }
+
+    String subject = getSubject(refreshToken);
+    UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
+
+    // 기존 권한 정보에서 역할(role) 추출
+    List<String> roles = userDetails.getAuthorities().stream()
+        .map(GrantedAuthority::getAuthority)
+        .toList();
+
+    // 새로운 액세스 토큰 생성
+    return createToken(subject, roles);
   }
 }

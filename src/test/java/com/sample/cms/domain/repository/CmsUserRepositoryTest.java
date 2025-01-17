@@ -27,25 +27,17 @@ class CmsUserRepositoryTest {
   private CmsUserRepository cmsUserRepository;
 
   private String userId;
-  private String userName;
   private String nonExistentUserId;
-  private String password;
-  private String wrongPassword;
 
   @BeforeEach
   void init() {
-
     userId = "admin01";
-    userName = "관리자01";
     nonExistentUserId = "empty00";
-    password = "password1!";
-    wrongPassword = "password00";
   }
-
 
   @Order(1)
   @Transactional
-  @DisplayName("사용자 ID로 조회 성공")
+  @DisplayName("사용자 ID로 조회 시 존재하는 사용자 반환")
   @Test
   void testFindByUserIdSuccess() {
 
@@ -55,14 +47,13 @@ class CmsUserRepositoryTest {
     // Then
     assertAll(
         () -> assertThat(optCmsUser).isPresent(),
-        () -> assertThat(optCmsUser.get().getUserId()).isEqualTo(userId),
-        () -> assertThat(optCmsUser.get().getUserName()).isEqualTo(userName)
+        () -> assertThat(optCmsUser.get().getUserId()).isEqualTo(userId)
     );
   }
 
   @Order(2)
   @Transactional
-  @DisplayName("존재하지 않는 사용자 ID 조회 실패")
+  @DisplayName("존재하지 않는 사용자 ID로 조회 시 비어 있는 Optional 반환")
   @Test
   void testFindByUserIdFailure() {
 

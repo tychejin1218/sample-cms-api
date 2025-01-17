@@ -41,11 +41,11 @@ public class SecurityConfig {
         .addFilter(corsFilter())
         .authorizeHttpRequests(
             authorizeHttpRequests -> authorizeHttpRequests
-                .requestMatchers("/auth/login", "/user/register").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/auth/login", "/auth/refresh-token").permitAll()
+        .anyRequest().authenticated()
         )
         .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
-            UsernamePasswordAuthenticationFilter.class)
+        UsernamePasswordAuthenticationFilter.class)
         .exceptionHandling(
             exceptionHandling ->
                 exceptionHandling.accessDeniedHandler(new JwtAccessDeniedHandler()))

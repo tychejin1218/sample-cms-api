@@ -8,6 +8,4 @@ public interface CmsUserRepository extends
     JpaRepository<CmsUser, Long> {
 
   Optional<CmsUser> findByUserId(String userId);
-
-  Optional<CmsUser> findByUserIdAndPassword(String userId, String password);
 }

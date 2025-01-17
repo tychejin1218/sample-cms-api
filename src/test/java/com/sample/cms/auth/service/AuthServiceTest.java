@@ -8,6 +8,7 @@ import com.sample.cms.auth.dto.AuthDto;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -27,69 +28,134 @@ class AuthServiceTest {
   @Autowired
   AuthService authService;
 
+  private String userId;
+  private String password;
+  private String nonExistentUserId;
+  private String wrongPassword;
+
+  @BeforeEach
+  void init() {
+    userId = "admin01";
+    password = "password1!";
+    nonExistentUserId = "empty00";
+    wrongPassword = "password0!";
+  }
+
   @Order(1)
   @Transactional(readOnly = true)
-  @DisplayName("로그인 성공 - 올바른 사용자 ID 및 비밀번호")
+  @DisplayName("로그인 성공 - 올바른 사용자 ID와 비밀번호를 입력하면 Access Token과 Refresh Token이 발급")
   @Test
-  void testAuthLoginSuccess() {
+  void testGetTokenByLoginSuccess() {
 
     // Given
-    String userId = "admin01";
-    String password = "password1!";
-
     AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, password);
 
     // When
-    AuthDto.LoginResponse loginResponse = authService.authLogin(loginRequest);
+    AuthDto.TokenResponse tokenResponse = authService.getTokenByLogin(loginRequest);
+    log.debug("tokenResponse: {}", tokenResponse);
 
     // Then
     assertAll(
-        () -> assertThat(loginResponse).isNotNull(),
-        () -> assertThat(loginResponse.getToken()).isNotNull()
+        () -> assertThat(tokenResponse).isNotNull(),
+        () -> assertThat(tokenResponse.getAccessToken()).isNotNull(),
+        () -> assertThat(tokenResponse.getRefreshToken()).isNotNull()
     );
   }
 
   @Order(2)
   @Transactional
-  @DisplayName("로그인 실패 - 비밀번호 불일치")
+  @DisplayName("로그인 실패 - 존재하지 않는 사용자 ID를 입력하면 ApiException이 발생")
   @Test
-  void testAuthLoginFailureWrongPassword() {
+  void testGetTokenByLoginFailureNonExistentUserId() {
 
     // Given
-    String userId = "admin01";
-    String wrongPassword = "password00";
-
-    AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, wrongPassword);
-
-    // When
-    ApiException exception = assertThrows(ApiException.class,
-        () -> authService.authLogin(loginRequest));
-
-    // Then
-    assertAll(
-        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_CREDENTIALS)
-    );
-  }
-
-  @Order(2)
-  @Transactional
-  @DisplayName("로그인 실패 - 존재하지 않는 사용자 ID")
-  @Test
-  void testAuthLoginFailureNonExistentUserId() {
-
-    // Given
-    String nonExistentUserId = "empty00";
-    String password = "password1!";
-
     AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(nonExistentUserId, password);
 
     // When
     ApiException exception = assertThrows(ApiException.class,
-        () -> authService.authLogin(loginRequest));
+        () -> authService.getTokenByLogin(loginRequest));
 
     // Then
     assertAll(
         () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_CREDENTIALS)
     );
+  }
+
+  @Order(3)
+  @Transactional
+  @DisplayName("로그인 실패 - 비밀번호가 일치하지 않으면 ApiException이 발생")
+  @Test
+  void testGetTokenByLoginFailureWrongPassword() {
+
+    // Given
+    AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, wrongPassword);
+
+    // When
+    ApiException exception = assertThrows(ApiException.class,
+        () -> authService.getTokenByLogin(loginRequest));
+
+    // Then
+    assertAll(
+        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_CREDENTIALS)
+    );
+  }
+
+  @Order(4)
+  @Transactional
+  @DisplayName("Access Token 재발급 성공: 유효한 Refresh Token을 입력하면 새로운 Access Token이 발급")
+  @Test
+  void testGetAccessTokenByRefreshTokenSuccess() {
+
+    // Given
+    String validRefreshToken = getValidRefreshToken();
+    AuthDto.RefreshTokenRequest refreshTokenRequest =
+        AuthDto.RefreshTokenRequest.of(validRefreshToken);
+
+    // When
+    AuthDto.RefreshTokenResponse refreshTokenResponse =
+        authService.getAccessTokenByRefreshToken(refreshTokenRequest);
+    log.debug("refreshTokenResponse: {}", refreshTokenResponse);
+
+    // Then
+    assertAll(
+        () -> assertThat(refreshTokenResponse).isNotNull(),
+        () -> assertThat(refreshTokenResponse.getAccessToken()).isNotNull()
+    );
+  }
+
+  @Order(5)
+  @Transactional
+  @DisplayName("Access Token 재발급 실패: 유효하지 않은 Refresh Token을 입력하면 ApiException이 발생")
+  @Test
+  void testGetAccessTokenByRefreshTokenFailureInvalidRefreshToken() {
+
+    // Given
+    String invalidRefreshToken = "invalid_refresh_token";
+    AuthDto.RefreshTokenRequest refreshTokenRequest = AuthDto.RefreshTokenRequest.of(
+        invalidRefreshToken);
+
+    // When
+    ApiException exception = assertThrows(ApiException.class,
+        () -> authService.getAccessTokenByRefreshToken(refreshTokenRequest));
+
+    // Then
+    assertAll(
+        () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_REFRESH_TOKEN)
+    );
+  }
+
+  /**
+   * 로그인 요청을 통해 유효한 Refresh Token을 반환
+   *
+   * @return 로그인 성공으로 발급받은 Refresh Token
+   */
+  private String getValidRefreshToken() {
+
+    AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, password);
+
+    AuthDto.TokenResponse tokenResponse = authService.getTokenByLogin(loginRequest);
+    log.debug("getValidRefreshToken tokenResponse: {}", tokenResponse);
+
+    return tokenResponse.getRefreshToken();
   }
 }

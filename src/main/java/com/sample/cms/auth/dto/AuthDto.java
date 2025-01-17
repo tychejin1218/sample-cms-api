@@ -31,8 +31,29 @@ public class AuthDto {
   @AllArgsConstructor(staticName = "of")
   @NoArgsConstructor
   @ToString
-  public static class LoginResponse {
+  public static class TokenResponse {
 
-    private String token;
+    private String accessToken;
+    private String refreshToken;
+  }
+
+  @Getter
+  @Builder
+  @AllArgsConstructor(staticName = "of")
+  @NoArgsConstructor
+  @ToString
+  public static class RefreshTokenRequest {
+
+    private String refreshToken;
+  }
+
+  @Getter
+  @Builder
+  @AllArgsConstructor(staticName = "of")
+  @NoArgsConstructor
+  @ToString
+  public static class RefreshTokenResponse {
+
+    private String accessToken;
   }
 }
