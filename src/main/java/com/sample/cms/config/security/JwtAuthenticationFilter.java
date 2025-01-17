@@ -35,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       throws IOException, ServletException {
 
     String token = jwtTokenProvider.getResolveToken(request);
-    if (token != null && jwtTokenProvider.validateToken(token)) {
+    if (token != null && jwtTokenProvider.validateAccessToken(token)) {
       Authentication auth = jwtTokenProvider.getAuthentication(token);
       // Spring Security의 SecurityContext에 인증 정보를 설정
       SecurityContextHolder.getContext().setAuthentication(auth);

@@ -52,7 +52,7 @@ public class AuthService {
         .toList();
 
     // 토큰 생성
-    String accessToken = jwtTokenProvider.createToken(cmsUser.getUserId(), roleList);
+    String accessToken = jwtTokenProvider.createAccessToken(cmsUser.getUserId(), roleList);
     String refreshToken = jwtTokenProvider.createRefreshToken(userId);
 
     return AuthDto.TokenResponse.of(accessToken, refreshToken);

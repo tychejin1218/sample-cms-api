@@ -50,6 +50,7 @@
     <exclude name="AvoidThrowingRawExceptionTypes"/>
     <exclude name="CognitiveComplexity"/>
     <exclude name="CyclomaticComplexity"/>
+    <exclude name="DataClass"/>
     <exclude name="ExcessiveImports"/>
     <exclude name="LoosePackageCoupling"/>
     <exclude name="LawOfDemeter"/>
