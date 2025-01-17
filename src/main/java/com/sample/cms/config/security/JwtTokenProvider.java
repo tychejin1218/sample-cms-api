@@ -1,6 +1,6 @@
 package com.sample.cms.config.security;
 
-import com.sample.cms.common.constants.Constants;
+import com.sample.cms.common.component.RedisComponent;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
 import io.jsonwebtoken.Claims;
@@ -16,6 +16,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,31 +32,40 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtTokenProvider {
 
-  private static final long ACCESS_TOKEN_VALID_TIME = 1000L * 60 * 5; // 토큰 유효 시간 5분
-  private static final long REFRESH_TOKEN_VALID_TIME = 1000L * 60 * 60 * 24 * 7; // 7일
+  private static final long ACCESS_TOKEN_VALID_TIME = 1000L * 60 * 60 * 2;        // 2시간
+  private static final long REFRESH_TOKEN_VALID_TIME = 1000L * 60 * 60 * 24 * 7;  // 7일
+
+  public static final String REFRESH_TOKEN = "REFRESH_TOKEN";
+
+  public static final String AUTHORIZATION = "Authorization";
+  public static final String BEARER = "Bearer";
 
   private final UserDetailsService userDetailsService;
+  private final RedisComponent redisComponent;
   private final SecretKey secretKey;
 
   /**
    * JwtTokenProvider 생성자
    *
    * @param userDetailsService 사용자 정보를 로드하기 위한 UserDetailsService
-   * @param secretKey          비밀키(Base64URL 인코딩된 문자열)
+   * @param redisComponent     Redis 연동을 위한 컴포넌트
+   * @param secretKey          JWT 서명을 위한 시크릿 키 (Base64 인코딩된 문자열)
    */
   public JwtTokenProvider(
       UserDetailsService userDetailsService,
+      RedisComponent redisComponent,
       @Value("${jwt.secret-key}") String secretKey) {
     this.userDetailsService = userDetailsService;
+    this.redisComponent = redisComponent;
     this.secretKey = Keys.hmacShaKeyFor(Decoders.BASE64URL.decode(secretKey));
   }
 
   /**
-   * 액세스 토큰 생성
+   * 액세스 토큰(Access Token)을 생성
    *
-   * @param subject  사용자를 식별하기 위한 고유 값 (예: UserId)
-   * @param roleList 사용자의 권한 목록 (예: ROLE_ADMIN, ROLE_USER)
-   * @return 생성된 JWT 액세스 토큰
+   * @param subject  사용자 고유 식별 값 (예: userId)
+   * @param roleList 사용자의 역할(roles) 목록
+   * @return 생성된 액세스 토큰 문자열
    */
   public String createAccessToken(String subject, List<String> roleList) {
     Map<String, Object> claims = new HashMap<>();
@@ -64,13 +74,20 @@ public class JwtTokenProvider {
   }
 
   /**
-   * 리프레시 토큰 생성
+   * 리프레시 토큰(Refresh Token)을 생성하고 Redis에 저장
    *
-   * @param subject 사용자를 식별하기 위한 고유 값 (예: UserId)
-   * @return 생성된 JWT 리프레시 토큰
+   * @param subject 사용자 고유 식별 값 (예: userId)
+   * @return 생성된 리프레시 토큰 문자열
    */
   public String createRefreshToken(String subject) {
-    return generateToken(subject, new HashMap<>(), REFRESH_TOKEN_VALID_TIME);
+
+    String refreshToken = generateToken(subject, new HashMap<>(), REFRESH_TOKEN_VALID_TIME);
+
+    // Redis에 Refresh Token 저장
+    redisComponent.setStringValue(subject + ":" + REFRESH_TOKEN, refreshToken,
+        REFRESH_TOKEN_VALID_TIME, TimeUnit.MILLISECONDS);
+
+    return refreshToken;
   }
 
   /**
@@ -94,7 +111,7 @@ public class JwtTokenProvider {
   }
 
   /**
-   * HTTP 요청의 Header에서 JWT 액세스 토큰 추출
+   * HTTP 요청의 헤더에서 JWT 토큰 추출
    *
    * <p>"Authorization" 헤더에서 "Bearer "로 시작하는 JWT 토큰을 추출</p>
    *
@@ -102,21 +119,22 @@ public class JwtTokenProvider {
    * @return 추출된 JWT 토큰. 토큰이 없거나 Bearer로 시작하지 않으면 null 반환
    */
   public String getResolveToken(HttpServletRequest request) {
-    String bearerToken = request.getHeader(Constants.AUTHORIZATION);
-    if (bearerToken != null && bearerToken.startsWith(Constants.BEARER + " ")) {
+    String bearerToken = request.getHeader(AUTHORIZATION);
+    if (bearerToken != null && bearerToken.startsWith(BEARER + " ")) {
       return bearerToken.substring(7);
     }
     return null;
   }
 
   /**
-   * 액세스 토큰의 유효성을 확인합니다.
+   * 액세스 토큰의 유효성을 확인
    *
-   * @param token 액세스 토큰
-   * @return 토큰이 유효하다면 true
-   * @throws ApiException 토큰이 만료되었거나, 잘못된 경우
+   * @param token 검증 대상 액세스 토큰
+   * @return 토큰이 유효하면 true 반환
+   * @throws ApiException 토큰이 만료되었거나, 유효하지 않으면 예외 발생
    */
   public boolean validateAccessToken(String token) {
+
     try {
       Jws<Claims> claims = Jwts.parser()
           .verifyWith(secretKey)
@@ -135,12 +153,20 @@ public class JwtTokenProvider {
   /**
    * 리프레시 토큰의 유효성을 확인
    *
-   * @param token 리프레시 토큰
+   * @param token 검증 대상 리프레시 토큰
    * @return 토큰이 유효하다면 true
-   * @throws ApiException 토큰이 만료되었거나, 잘못된 경우
+   * @throws ApiException 토큰이 만료되었거나, 유효하지 않으면 예외 발생
    */
   public boolean validateRefreshToken(String token) {
+
     try {
+
+      String subject = getSubject(token);
+      String redisToken = redisComponent.getStringValue(subject + ":" + REFRESH_TOKEN);
+      if (!token.equals(redisToken)) {
+        throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_TOKEN);
+      }
+
       Jwts.parser()
           .verifyWith(secretKey)
           .build()
@@ -183,13 +209,13 @@ public class JwtTokenProvider {
   }
 
   /**
-   * 리프레시 토큰을 통해 새로운 액세스 토큰을 생성
+   * 리프레시 토큰을 검증하고 새로운 액세스 토큰을 생성
    *
-   * @param refreshToken 유효한 리프레시 토큰
+   * @param refreshToken 발급 기준이 되는 리프레시 토큰
    * @return 새로 생성된 액세스 토큰
-   * @throws ApiException 리프레시 토큰이 유효하지 않은 경우
+   * @throws ApiException 리프레시 토큰이 유효하지 않은 경우 예외 발생
    */
-  public String reissueAccessToken(String refreshToken) {
+  public String getAccessToken(String refreshToken) {
 
     if (!validateRefreshToken(refreshToken)) {
       throw new ApiException(HttpStatus.BAD_REQUEST, ApiStatus.INVALID_REFRESH_TOKEN);
@@ -198,12 +224,22 @@ public class JwtTokenProvider {
     String subject = getSubject(refreshToken);
     UserDetails userDetails = userDetailsService.loadUserByUsername(subject);
 
-    // 기존 권한 정보에서 역할(role) 추출
+    // 권한 목록 추출
     List<String> roles = userDetails.getAuthorities().stream()
         .map(GrantedAuthority::getAuthority)
         .toList();
 
     // 새로운 액세스 토큰 생성
     return createAccessToken(subject, roles);
+  }
+
+  /**
+   * Redis에서 토큰을 삭제
+   *
+   * @param subject 사용자 고유 식별 값 (예: userId)
+   * @return 토큰 삭제 성공 여부
+   */
+  public boolean deleteToken(String subject) {
+    return redisComponent.deleteKey(subject + ":" + REFRESH_TOKEN);
   }
 }

@@ -56,4 +56,14 @@ public class AuthDto {
 
     private String accessToken;
   }
+
+  @Getter
+  @Builder
+  @AllArgsConstructor(staticName = "of")
+  @NoArgsConstructor
+  @ToString
+  public static class LogoutRequest {
+
+    private String accessToken;
+  }
 }

@@ -1,4 +1,4 @@
-package com.sample.cms.common.dto;
+package com.sample.cms.config.security;
 
 import com.sample.cms.domain.entity.CmsUser;
 import java.io.Serial;
@@ -15,14 +15,14 @@ import org.springframework.security.core.userdetails.User;
 @Getter
 @Setter
 @ToString
-public class CustomUser extends User {
+public class CmsUserDetail extends User {
 
   @Serial
   private static final long serialVersionUID = -6746075231392948543L;
 
   private transient CmsUser cmsUser;
 
-  public CustomUser(CmsUser cmsUser) {
+  public CmsUserDetail(CmsUser cmsUser) {
     super(cmsUser.getUserName(), cmsUser.getPassword(), getAuthorities(cmsUser.getRoles()));
     this.cmsUser = cmsUser;
   }

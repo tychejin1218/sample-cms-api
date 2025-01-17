@@ -12,8 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 @RequiredArgsConstructor
 @EnableWebSecurity
@@ -34,24 +34,23 @@ public class SecurityConfig {
 
     http
         .httpBasic(AbstractHttpConfigurer::disable)
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(AbstractHttpConfigurer::disable)
         .sessionManagement(
             sessionManagement ->
                 sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .addFilter(corsFilter())
         .authorizeHttpRequests(
             authorizeHttpRequests -> authorizeHttpRequests
                 .requestMatchers("/auth/login", "/auth/refresh-token").permitAll()
-        .anyRequest().authenticated()
+                .anyRequest().authenticated()
         )
         .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider),
-        UsernamePasswordAuthenticationFilter.class)
+            UsernamePasswordAuthenticationFilter.class)
         .exceptionHandling(
             exceptionHandling ->
-                exceptionHandling.accessDeniedHandler(new JwtAccessDeniedHandler()))
-        .exceptionHandling(
-            exceptionHandling ->
-                exceptionHandling.authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
+                exceptionHandling
+                    .accessDeniedHandler(new JwtAccessDeniedHandler())
+                    .authenticationEntryPoint(new JwtAuthenticationEntryPoint()));
 
     return http.build();
   }
@@ -72,15 +71,15 @@ public class SecurityConfig {
    * @return CorsFilter
    */
   @Bean
-  public CorsFilter corsFilter() {
+  public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
-    config.setAllowCredentials(true);
     config.addAllowedOriginPattern("*");
     config.addAllowedHeader("*");
     config.addAllowedMethod("*");
+    config.setAllowCredentials(true);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
-    return new CorsFilter(source);
+    return source;
   }
 }

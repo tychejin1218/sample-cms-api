@@ -1,6 +1,7 @@
 package com.sample.cms.auth.service;
 
 import com.sample.cms.auth.dto.AuthDto;
+import com.sample.cms.common.component.RedisComponent;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
 import com.sample.cms.config.security.JwtTokenProvider;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class AuthService {
   private final CmsUserRepository cmsUserRepository;
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider jwtTokenProvider;
+  private final RedisComponent redisComponent;
 
   /**
    * 로그인 요청을 처리하고 엑세스 토큰 및 리프레시 토큰을 생성하여 반환
@@ -46,12 +49,19 @@ public class AuthService {
       throw new ApiException(HttpStatus.BAD_REQUEST, ApiStatus.INVALID_CREDENTIALS);
     }
 
+    // 기존 사용자의 세션이 Redis에 저장되어 있는 경우 기존 액세스 및 리프레시 토큰을 삭제하여 세션을 종료
+    String redisRefreshTokenKey = userId + ":" + JwtTokenProvider.REFRESH_TOKEN;
+    String existingRefreshToken = redisComponent.getStringValue(redisRefreshTokenKey);
+    if (StringUtils.isNotBlank(existingRefreshToken)) {
+      redisComponent.deleteKey(redisRefreshTokenKey);
+    }
+
     // 권한 문자열을 리스트로 변환
     List<String> roleList = Arrays.stream(cmsUser.getRoles().split(","))
         .map(String::trim)
         .toList();
 
-    // 토큰 생성
+    // 액세스 토큰 및 리프레시 토큰 생성
     String accessToken = jwtTokenProvider.createAccessToken(cmsUser.getUserId(), roleList);
     String refreshToken = jwtTokenProvider.createRefreshToken(userId);
 
@@ -66,7 +76,7 @@ public class AuthService {
    */
   public AuthDto.RefreshTokenResponse getAccessTokenByRefreshToken(
       AuthDto.RefreshTokenRequest refreshTokenRequest) {
-    String accessToken = jwtTokenProvider.reissueAccessToken(refreshTokenRequest.getRefreshToken());
+    String accessToken = jwtTokenProvider.getAccessToken(refreshTokenRequest.getRefreshToken());
     return AuthDto.RefreshTokenResponse.of(accessToken);
   }
 }

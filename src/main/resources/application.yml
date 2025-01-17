@@ -19,7 +19,7 @@ server:
 # SPRING ??
 spring:
   web:
-    locale: ko_KR #spring.mvc.locale is deprecated
+    locale: ko_KR
     resources:
       add-mappings: false
   messages:

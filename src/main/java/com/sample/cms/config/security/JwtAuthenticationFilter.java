@@ -1,6 +1,5 @@
 package com.sample.cms.config.security;
 
-import com.sample.cms.common.dto.CustomUser;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,8 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-      CustomUser customUser = (CustomUser) principal;
-      log.debug("customUser : {}", customUser);
+      CmsUserDetail cmsUserDetail = (CmsUserDetail) principal;
+      log.debug("cmsUserDetail: {}", cmsUserDetail);
     }
 
     filterChain.doFilter(request, response);
