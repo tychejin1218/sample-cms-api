@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.sample.cms.auth.dto.AuthDto;
+import com.sample.cms.auth.dto.AuthDto.LogoutRequest;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
 import lombok.extern.slf4j.Slf4j;
@@ -142,6 +143,23 @@ class AuthServiceTest {
     assertAll(
         () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_REFRESH_TOKEN)
     );
+  }
+
+  @Order(6)
+  @Transactional
+  @DisplayName("")
+  @Test
+  void testLogout() {
+
+    // Given
+    String accessToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbjAxIiwicm9sZUxpc3QiOlsiUk9MRV9BRE1JTiJdLCJpYXQiOjE3MzczNjE1MTksImV4cCI6MTczNzM2ODcxOX0.PF9FnIBcgCRCFwVKXu702aDC8-QbnFqK1-lMuxi_pEY";
+    LogoutRequest logoutRequest = LogoutRequest.of(accessToken);
+
+    // When
+    authService.logout(logoutRequest);
+
+    // Then
+
   }
 
   /**
