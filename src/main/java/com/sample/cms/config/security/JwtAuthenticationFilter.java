@@ -40,8 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       SecurityContextHolder.getContext().setAuthentication(auth);
 
       Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-      CmsUserDetail cmsUserDetail = (CmsUserDetail) principal;
-      log.debug("cmsUserDetail: {}", cmsUserDetail);
+      CustomUserDetail customUserDetail = (CustomUserDetail) principal;
+      log.debug("customUserDetail: {}", customUserDetail);
     }
 
     filterChain.doFilter(request, response);

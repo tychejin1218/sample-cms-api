@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class CmsUserDetailService implements UserDetailsService {
+public class CustomUserDetailService implements UserDetailsService {
 
   private final CmsUserRepository cmsUserRepository;
 
@@ -22,6 +22,6 @@ public class CmsUserDetailService implements UserDetailsService {
     CmsUser cmsUser = cmsUserRepository.findByUserId(userId)
         .orElseThrow(() -> new ApiException(ApiStatus.INVALID_REQUEST));
     log.debug("cmsUser: {}", cmsUser);
-    return new CmsUserDetail(cmsUser);
+    return new CustomUserDetail(cmsUser);
   }
 }

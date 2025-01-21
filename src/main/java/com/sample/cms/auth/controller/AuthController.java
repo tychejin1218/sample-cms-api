@@ -23,7 +23,7 @@ public class AuthController {
    * @return 액세스 토큰 및 리프레시 토큰를 반환
    */
   @PostMapping("/auth/login")
-  public BaseResponse<AuthDto.TokenResponse> getTokenByLogin(
+  public BaseResponse<AuthDto.LoginResponse> getTokenByLogin(
       @RequestBody AuthDto.LoginRequest loginRequest) {
     return BaseResponse.ok(authService.getTokenByLogin(loginRequest));
   }
@@ -38,5 +38,17 @@ public class AuthController {
   public BaseResponse<AuthDto.RefreshTokenResponse> getAccessTokenByRefreshToken(
       @RequestBody AuthDto.RefreshTokenRequest refreshTokenRequest) {
     return BaseResponse.ok(authService.getAccessTokenByRefreshToken(refreshTokenRequest));
+  }
+
+  /**
+   * 로그아웃 요청을 처리하고, Refresh Token을 삭제 및 Access Token을 블랙리스트 처리
+   *
+   * @param logoutRequest 로그아웃 요청 정보
+   * @return 사용자 ID
+   */
+  @PostMapping("/auth/logout")
+  public BaseResponse<AuthDto.LogoutResponse> deleteTokenByLogout(
+      @RequestBody AuthDto.LogoutRequest logoutRequest) {
+    return BaseResponse.ok(authService.deleteTokenByLogout(logoutRequest));
   }
 }

@@ -70,7 +70,7 @@ public class ExceptionAdvice {
       ApiException e) {
     log.error("handleApiException : {}", request.getRequestURI(), e);
     request.setAttribute(EXCEPTION, true);
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+    return ResponseEntity.status(e.getHttpStatus()).body(
         ErrorResponse.builder()
             .statusCode(e.getStatus().getCode())
             .method(request.getMethod())

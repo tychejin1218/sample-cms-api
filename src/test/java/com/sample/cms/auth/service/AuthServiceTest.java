@@ -46,7 +46,7 @@ class AuthServiceTest {
 
   @Order(1)
   @Transactional(readOnly = true)
-  @DisplayName("로그인 성공 - 올바른 사용자 ID와 비밀번호를 입력하면 Access Token과 Refresh Token이 발급")
+  @DisplayName("로그인 성공 - 올바른 사용자 ID와 비밀번호를 입력하면 Access Token과 Refresh Token이 반환")
   @Test
   void testGetTokenByLoginSuccess() {
 
@@ -54,14 +54,14 @@ class AuthServiceTest {
     AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, password);
 
     // When
-    AuthDto.TokenResponse tokenResponse = authService.getTokenByLogin(loginRequest);
-    log.debug("tokenResponse: {}", tokenResponse);
+    AuthDto.LoginResponse loginResponse = authService.getTokenByLogin(loginRequest);
+    log.debug("loginResponse: {}", loginResponse);
 
     // Then
     assertAll(
-        () -> assertThat(tokenResponse).isNotNull(),
-        () -> assertThat(tokenResponse.getAccessToken()).isNotNull(),
-        () -> assertThat(tokenResponse.getRefreshToken()).isNotNull()
+        () -> assertThat(loginResponse).isNotNull(),
+        () -> assertThat(loginResponse.getAccessToken()).isNotNull(),
+        () -> assertThat(loginResponse.getRefreshToken()).isNotNull()
     );
   }
 
@@ -110,9 +110,9 @@ class AuthServiceTest {
   void testGetAccessTokenByRefreshTokenSuccess() throws InterruptedException {
 
     // Given
-    AuthDto.TokenResponse validTokenResponse = getValidToken();
+    AuthDto.LoginResponse loginResponse = getValidTokenByLogin();
     AuthDto.RefreshTokenRequest refreshTokenRequest =
-        AuthDto.RefreshTokenRequest.of(validTokenResponse.getRefreshToken());
+        AuthDto.RefreshTokenRequest.of(loginResponse.getRefreshToken());
 
     TimeUnit.SECONDS.sleep(3);
 
@@ -126,7 +126,7 @@ class AuthServiceTest {
         () -> assertThat(refreshTokenResponse).isNotNull(),
         () -> assertThat(refreshTokenResponse.getAccessToken()).isNotNull(),
         () -> assertThat(refreshTokenResponse.getAccessToken()).isNotEqualTo(
-            validTokenResponse.getAccessToken())
+            loginResponse.getAccessToken())
     );
   }
 
@@ -154,33 +154,37 @@ class AuthServiceTest {
 
   @Order(6)
   @Transactional
-  @DisplayName("")
+  @DisplayName("로그아웃 요청 성공: 효한 Access Token을 입력하면 로그아웃 처리와 사용자 ID 반환")
   @Test
-  void testLogout() {
+  void testDeleteTokenByLogoutSuccess() {
 
     // Given
-    String accessToken = "";
-    LogoutRequest logoutRequest = LogoutRequest.of(accessToken);
+    AuthDto.LoginResponse loginResponse = getValidTokenByLogin();
+    LogoutRequest logoutRequest = LogoutRequest.of(loginResponse.getAccessToken());
 
     // When
-    authService.logout(logoutRequest);
+    AuthDto.LogoutResponse logoutResponse = authService.deleteTokenByLogout(logoutRequest);
+    log.debug("logoutResponse: {}", logoutResponse);
 
     // Then
-
+    assertAll(
+        () -> assertThat(logoutResponse).isNotNull(),
+        () -> assertThat(logoutResponse.getUserId()).isNotNull()
+    );
   }
 
   /**
-   * 로그인 요청을 통해 유효한 Token을 반환
+   * 로그인 요청을 처리하여 유효한 인증 정보를 반환
    *
-   * @return 로그인 성공으로 발급받은 Token
+   * @return 로그인 성공 시 발급된 액세스 및 리프레시 토큰 정보
    */
-  private AuthDto.TokenResponse getValidToken() {
+  private AuthDto.LoginResponse getValidTokenByLogin() {
 
     AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, password);
 
-    AuthDto.TokenResponse tokenResponse = authService.getTokenByLogin(loginRequest);
-    log.debug("getValidToken tokenResponse: {}", tokenResponse);
+    AuthDto.LoginResponse loginResponse = authService.getTokenByLogin(loginRequest);
+    log.debug("getValidTokenByLogin loginResponse: {}", loginResponse);
 
-    return tokenResponse;
+    return loginResponse;
   }
 }

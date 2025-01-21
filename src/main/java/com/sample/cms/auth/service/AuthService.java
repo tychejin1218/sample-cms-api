@@ -16,6 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -33,7 +34,8 @@ public class AuthService {
    * @param loginRequest 로그인 요청 정보 (사용자 ID, 비밀번호 포함)
    * @return 액세스 토큰 및 리프레시 토큰를 반환
    */
-  public AuthDto.TokenResponse getTokenByLogin(AuthDto.LoginRequest loginRequest) {
+  @Transactional(readOnly = true)
+  public AuthDto.LoginResponse getTokenByLogin(AuthDto.LoginRequest loginRequest) {
 
     String userId = loginRequest.getUserId();
 
@@ -66,7 +68,7 @@ public class AuthService {
     String accessToken = jwtTokenProvider.createAccessToken(cmsUser.getUserId(), roleList);
     String refreshToken = jwtTokenProvider.createRefreshToken(userId);
 
-    return AuthDto.TokenResponse.of(accessToken, refreshToken);
+    return AuthDto.LoginResponse.of(accessToken, refreshToken);
   }
 
   /**
@@ -75,24 +77,36 @@ public class AuthService {
    * @param refreshTokenRequest 리프레시 토큰 요청 정보
    * @return 새로 발급된 액세스 토큰 정보를 반환
    */
+  @Transactional(readOnly = true)
   public AuthDto.RefreshTokenResponse getAccessTokenByRefreshToken(
       AuthDto.RefreshTokenRequest refreshTokenRequest) {
     String accessToken = jwtTokenProvider.getAccessToken(refreshTokenRequest.getRefreshToken());
     return AuthDto.RefreshTokenResponse.of(accessToken);
   }
 
-  public void logout(AuthDto.LogoutRequest logoutRequest) {
+  /**
+   * 로그아웃 요청을 처리하고, Refresh Token을 삭제 및 Access Token을 블랙리스트 처리
+   *
+   * @param logoutRequest 로그아웃 요청 정보
+   * @return 사용자 ID
+   */
+  @Transactional(readOnly = true)
+  public AuthDto.LogoutResponse deleteTokenByLogout(AuthDto.LogoutRequest logoutRequest) {
+
+    // TODO : SecurityContextHolder.getContext().getAuthentication().getDetails();
+    /*CustomUserDetail userDetail =
+        (CustomUserDetail) SecurityContextHolder.getContext().getAuthentication().getDetails();
+    log.debug("userDetail: {}", userDetail);*/
 
     String accessToken = logoutRequest.getAccessToken();
-    log.debug("accessToken: {}", accessToken);
-
     String userId = jwtTokenProvider.getSubject(accessToken);
-    log.debug("userId: {}", userId);
 
-    // 1. Redis에서 Refresh Token 삭제
-    redisComponent.deleteByKey(RedisKeyType.BLACK_LIST.getRedisKeyBySubject(userId));
+    // Redis에서 Refresh Token 삭제
+    redisComponent.deleteByKey(RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(userId));
 
-    // 2. Access Token 블랙리스트 처리
+    // Access Token 블랙리스트 처리
     jwtTokenProvider.insertBlackList(accessToken);
+
+    return AuthDto.LogoutResponse.of(userId);
   }
 }

@@ -1,6 +1,7 @@
 package com.sample.cms.config.security;
 
 import com.sample.cms.common.component.RedisComponent;
+import com.sample.cms.common.constants.Constants;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
 import com.sample.cms.common.type.RedisKeyType;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,8 +38,6 @@ public class JwtTokenProvider {
   private static final long ACCESS_TOKEN_VALID_TIME = 1000L * 60 * 60 * 2;        // 2시간
   private static final long REFRESH_TOKEN_VALID_TIME = 1000L * 60 * 60 * 24 * 7;  // 7일
 
-  private static final String AUTHORIZATION = "Authorization";
-  private static final String BEARER = "Bearer";
 
   private final UserDetailsService userDetailsService;
   private final RedisComponent redisComponent;
@@ -124,8 +124,8 @@ public class JwtTokenProvider {
    * @return 추출된 JWT 토큰. 토큰이 없거나 Bearer로 시작하지 않으면 null 반환
    */
   public String getResolveToken(HttpServletRequest request) {
-    String bearerToken = request.getHeader(AUTHORIZATION);
-    if (bearerToken != null && bearerToken.startsWith(BEARER + " ")) {
+    String bearerToken = request.getHeader(Constants.AUTHORIZATION);
+    if (bearerToken != null && bearerToken.startsWith(Constants.BEARER + " ")) {
       return bearerToken.substring(7);
     }
     return null;
@@ -143,9 +143,10 @@ public class JwtTokenProvider {
     try {
 
       String subject = getSubject(accessToken);
-      String redisToken = redisComponent.getStringValue(
+      String blackListAccessToken = redisComponent.getStringValue(
           RedisKeyType.BLACK_LIST.getRedisKeyBySubject(subject));
-      if (!accessToken.equals(redisToken)) {
+      if (StringUtils.isNotBlank(blackListAccessToken)
+          && accessToken.equals(blackListAccessToken)) {
         throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_TOKEN);
       }
 
@@ -172,15 +173,21 @@ public class JwtTokenProvider {
    */
   public boolean validateRefreshToken(String refreshToken) {
 
+    String subject = getSubject(refreshToken);
+    String redisToken = redisComponent.getStringValue(
+        RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(subject));
+
+    // Refresh Token 존재 여부 확인
+    if (StringUtils.isBlank(refreshToken)) {
+      throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_TOKEN);
+    }
+
+    //  Redis에 저장된 값과 Refresh Token 일치 여부 확인
+    if (!refreshToken.equals(redisToken)) {
+      throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_REFRESH_TOKEN);
+    }
+
     try {
-
-      String subject = getSubject(refreshToken);
-      String redisToken = redisComponent.getStringValue(
-          RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(subject));
-      if (!refreshToken.equals(redisToken)) {
-        throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_TOKEN);
-      }
-
       Jws<Claims> claims = Jwts.parser()
           .verifyWith(secretKey)
           .build()
@@ -214,12 +221,17 @@ public class JwtTokenProvider {
    * @return 추출된 subject (예: userId)
    */
   public String getSubject(String token) {
-    return Jwts.parser()
-        .verifyWith(secretKey)
-        .build()
-        .parseSignedClaims(token)
-        .getPayload()
-        .getSubject();
+    try {
+      return Jwts.parser()
+          .verifyWith(secretKey)
+          .build()
+          .parseSignedClaims(token)
+          .getPayload()
+          .getSubject();
+    } catch (JwtException | IllegalArgumentException e) {
+      log.error("Invalid Token: {}", e.getMessage());
+      throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_REFRESH_TOKEN);
+    }
   }
 
   /**

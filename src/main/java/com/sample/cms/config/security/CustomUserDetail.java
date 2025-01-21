@@ -15,14 +15,14 @@ import org.springframework.security.core.userdetails.User;
 @Getter
 @Setter
 @ToString
-public class CmsUserDetail extends User {
+public class CustomUserDetail extends User {
 
   @Serial
   private static final long serialVersionUID = -6746075231392948543L;
 
   private transient CmsUser cmsUser;
 
-  public CmsUserDetail(CmsUser cmsUser) {
+  public CustomUserDetail(CmsUser cmsUser) {
     super(cmsUser.getUserName(), cmsUser.getPassword(), getAuthorities(cmsUser.getRoles()));
     this.cmsUser = cmsUser;
   }

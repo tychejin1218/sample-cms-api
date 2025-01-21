@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sample.cms.auth.dto.AuthDto;
+import com.sample.cms.common.constants.Constants;
 import com.sample.cms.common.type.ApiStatus;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +46,7 @@ class AuthControllerTest {
 
   private static final String JSON_PATH_STATUS_CODE = "statusCode";
   private static final String JSON_PATH_MESSAGE = "message";
+  private static final String JSON_PATH_DATA = "data";
   private static final String JSON_PATH_METHOD = "method";
   private static final String JSON_PATH_TIMESTAMP = "timestamp";
 
@@ -152,9 +155,11 @@ class AuthControllerTest {
   void testAuthRefreshTokenSuccess() throws Exception {
 
     // Given
-    String validRefreshToken = getValidRefreshToken();
+    AuthDto.LoginResponse loginResponse = getValidTokenByLogin();
     AuthDto.RefreshTokenRequest refreshTokenRequest = AuthDto.RefreshTokenRequest.of(
-        validRefreshToken);
+        loginResponse.getRefreshToken());
+
+    TimeUnit.SECONDS.sleep(3);
 
     // When
     ResultActions resultActions = mockMvc.perform(
@@ -169,14 +174,14 @@ class AuthControllerTest {
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath(JSON_PATH_STATUS_CODE).value(ApiStatus.OK.getCode()))
         .andExpect(jsonPath(JSON_PATH_MESSAGE).value(ApiStatus.OK.getMessage()))
-        .andExpect(jsonPath("data.accessToken").isNotEmpty())
+        .andExpect(jsonPath(JSON_PATH_DATA + ".accessToken").isNotEmpty())
         .andDo(print());
   }
 
   @Order(5)
   @Transactional
   @DisplayName("Access Token 재발급 실패: 유효하지 않은 Refresh Token을 입력하면 ApiException이 발생"
-      + "_Status:400, statusCode:810")
+      + "_Status:401, statusCode:810")
   @Test
   void testAuthRefreshTokenFailureInvalidToken() throws Exception {
 
@@ -194,20 +199,81 @@ class AuthControllerTest {
 
     // Then
     resultActions
-        .andExpect(status().isBadRequest())
+        .andExpect(status().isUnauthorized())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath(JSON_PATH_STATUS_CODE).value(ApiStatus.INVALID_REFRESH_TOKEN.getCode()))
         .andExpect(jsonPath(JSON_PATH_MESSAGE).value(ApiStatus.INVALID_REFRESH_TOKEN.getMessage()))
-        .andExpect(jsonPath("data").doesNotExist())
+        .andExpect(jsonPath(JSON_PATH_DATA).doesNotExist())
+        .andDo(print());
+  }
+
+  @Order(6)
+  @Transactional
+  @DisplayName("로그아웃 성공: Refresh Token 삭제 및 Access Token 블랙리스트 처리 성공"
+      + "_Status:200, statusCode:200")
+  @Test
+  void testAuthLogoutSuccess() throws Exception {
+
+    // Given
+    AuthDto.LoginResponse loginResponse = getValidTokenByLogin();
+    AuthDto.LogoutRequest logoutRequest = AuthDto.LogoutRequest.of(loginResponse.getAccessToken());
+
+    // When
+    ResultActions resultActions = mockMvc.perform(
+        post("/auth/logout")
+            .header(Constants.AUTHORIZATION,
+                Constants.BEARER + " " + loginResponse.getAccessToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(logoutRequest))
+    );
+
+    // Then
+    resultActions
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath(JSON_PATH_STATUS_CODE).value(ApiStatus.OK.getCode()))
+        .andExpect(jsonPath(JSON_PATH_MESSAGE).value(ApiStatus.OK.getMessage()))
+        .andExpect(jsonPath("data.userId").isNotEmpty())
+        .andDo(print());
+  }
+
+  @Order(7)
+  @Transactional
+  @DisplayName("로그아웃 실패: 유효하지 않은  Access Token이 주어졌을 때 ApiException 발생"
+      + "_Status:401, statusCode:810")
+  @Test
+  void testAuthLogoutFailureInvalidToken() throws Exception {
+
+    // Given
+    AuthDto.LoginResponse loginResponse = getValidTokenByLogin();
+    String invalidRefreshToken = "invalid_refresh_token";
+    AuthDto.LogoutRequest logoutRequest = AuthDto.LogoutRequest.of(invalidRefreshToken);
+
+    // When
+    ResultActions resultActions = mockMvc.perform(
+        post("/auth/logout")
+            .header(Constants.AUTHORIZATION,
+                Constants.BEARER + " " + loginResponse.getAccessToken())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(logoutRequest))
+    );
+
+    // Then
+    resultActions
+        .andExpect(status().isUnauthorized())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath(JSON_PATH_STATUS_CODE).value(ApiStatus.INVALID_REFRESH_TOKEN.getCode()))
+        .andExpect(jsonPath(JSON_PATH_MESSAGE).value(ApiStatus.INVALID_REFRESH_TOKEN.getMessage()))
+        .andExpect(jsonPath(JSON_PATH_DATA).doesNotExist())
         .andDo(print());
   }
 
   /**
-   * 로그인 요청을 통해 유효한 Refresh Token을 반환
+   * 로그인 요청을 처리하여 유효한 인증 정보를 반환
    *
-   * @return 로그인 성공으로 발급받은 Refresh Token
+   * @return 로그인 성공 시 발급된 액세스 및 리프레시 토큰 정보
    */
-  private String getValidRefreshToken() throws Exception {
+  private AuthDto.LoginResponse getValidTokenByLogin() throws Exception {
 
     String loginUrl = "/auth/login";
     AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, password);
@@ -219,6 +285,9 @@ class AuthControllerTest {
     );
 
     String content = resultActions.andReturn().getResponse().getContentAsString();
-    return objectMapper.readTree(content).get("data").get("refreshToken").asText();
+    String accessToken = objectMapper.readTree(content).get("data").get("accessToken").asText();
+    String refreshToken = objectMapper.readTree(content).get("data").get("refreshToken").asText();
+
+    return AuthDto.LoginResponse.of(accessToken, refreshToken);
   }
 }

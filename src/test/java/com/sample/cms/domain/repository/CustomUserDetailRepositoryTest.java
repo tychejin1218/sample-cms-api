@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @SpringBootTest
 @ActiveProfiles("local")
-class CmsUserDetailRepositoryTest {
+class CustomUserDetailRepositoryTest {
 
   @Autowired
   private CmsUserRepository cmsUserRepository;

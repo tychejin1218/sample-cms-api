@@ -31,7 +31,7 @@ public class AuthDto {
   @AllArgsConstructor(staticName = "of")
   @NoArgsConstructor
   @ToString
-  public static class TokenResponse {
+  public static class LoginResponse {
 
     private String accessToken;
     private String refreshToken;
@@ -65,5 +65,15 @@ public class AuthDto {
   public static class LogoutRequest {
 
     private String accessToken;
+  }
+
+  @Getter
+  @Builder
+  @AllArgsConstructor(staticName = "of")
+  @NoArgsConstructor
+  @ToString
+  public static class LogoutResponse {
+
+    private String userId;
   }
 }
