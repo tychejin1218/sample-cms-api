@@ -1,11 +1,10 @@
 package com.sample.cms.auth.service;
 
-import static com.sample.cms.config.security.JwtTokenProvider.REFRESH_TOKEN_PREFIX;
-
 import com.sample.cms.auth.dto.AuthDto;
 import com.sample.cms.common.component.RedisComponent;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
+import com.sample.cms.common.type.RedisKeyType;
 import com.sample.cms.config.security.JwtTokenProvider;
 import com.sample.cms.domain.entity.CmsUser;
 import com.sample.cms.domain.repository.CmsUserRepository;
@@ -52,10 +51,10 @@ public class AuthService {
     }
 
     // 기존 사용자의 세션이 Redis에 저장되어 있는 경우 기존 액세스 및 리프레시 토큰을 삭제하여 세션을 종료
-    String redisRefreshTokenKey = userId + ":" + REFRESH_TOKEN_PREFIX;
+    String redisRefreshTokenKey = RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(userId);
     String existingRefreshToken = redisComponent.getStringValue(redisRefreshTokenKey);
     if (StringUtils.isNotBlank(existingRefreshToken)) {
-      redisComponent.deleteKey(redisRefreshTokenKey);
+      redisComponent.deleteByKey(redisRefreshTokenKey);
     }
 
     // 권한 문자열을 리스트로 변환
@@ -91,7 +90,7 @@ public class AuthService {
     log.debug("userId: {}", userId);
 
     // 1. Redis에서 Refresh Token 삭제
-    redisComponent.deleteKey(REFRESH_TOKEN_PREFIX + ":" + userId);
+    redisComponent.deleteByKey(RedisKeyType.BLACK_LIST.getRedisKeyBySubject(userId));
 
     // 2. Access Token 블랙리스트 처리
     jwtTokenProvider.insertBlackList(accessToken);

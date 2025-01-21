@@ -131,11 +131,11 @@ public class RedisComponent {
    * @param key 삭제할 키
    * @return 삭제가 성공했는지 여부
    */
-  public boolean deleteKey(String key) {
+  public boolean deleteByKey(String key) {
     try {
       return Boolean.TRUE.equals(stringRedisTemplate.delete(key));
     } catch (Exception e) {
-      log.error("deleteKey key : {}", key, e);
+      log.error("deleteByKey key: {}", key, e);
       return false;
     }
   }

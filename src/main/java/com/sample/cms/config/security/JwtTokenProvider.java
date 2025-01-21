@@ -3,6 +3,7 @@ package com.sample.cms.config.security;
 import com.sample.cms.common.component.RedisComponent;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
+import com.sample.cms.common.type.RedisKeyType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jws;
@@ -34,10 +35,6 @@ public class JwtTokenProvider {
 
   private static final long ACCESS_TOKEN_VALID_TIME = 1000L * 60 * 60 * 2;        // 2시간
   private static final long REFRESH_TOKEN_VALID_TIME = 1000L * 60 * 60 * 24 * 7;  // 7일
-
-  // TODO : 접근제어자
-  public static final String REFRESH_TOKEN_PREFIX = "REFRESH_TOKEN";
-  public static final String BLACK_LIST_PREFIX = "BLACK_LIST";
 
   private static final String AUTHORIZATION = "Authorization";
   private static final String BEARER = "Bearer";
@@ -85,9 +82,15 @@ public class JwtTokenProvider {
 
     String refreshToken = generateToken(subject, new HashMap<>(), REFRESH_TOKEN_VALID_TIME);
 
+    log.debug("RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(subject): {}",
+        RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(subject));
+
     // Redis에 Refresh Token 저장
-    redisComponent.setStringValue(REFRESH_TOKEN_PREFIX + ":" + subject, refreshToken,
-        REFRESH_TOKEN_VALID_TIME, TimeUnit.MILLISECONDS);
+    redisComponent.setStringValue(
+        RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(subject),
+        refreshToken,
+        REFRESH_TOKEN_VALID_TIME,
+        TimeUnit.MILLISECONDS);
 
     return refreshToken;
   }
@@ -131,25 +134,25 @@ public class JwtTokenProvider {
   /**
    * 액세스 토큰의 유효성을 확인
    *
-   * @param token 검증 대상 액세스 토큰
+   * @param accessToken 검증 대상 액세스 토큰
    * @return 토큰이 유효하면 true 반환
    * @throws ApiException 토큰이 만료되었거나, 유효하지 않으면 예외 발생
    */
-  public boolean validateAccessToken(String token) {
+  public boolean validateAccessToken(String accessToken) {
 
     try {
 
-      // TODO : 블랙리스트
-      String subject = getSubject(token);
-      String redisToken = redisComponent.getStringValue(BLACK_LIST_PREFIX + ":" + subject);
-      if (!token.equals(redisToken)) {
+      String subject = getSubject(accessToken);
+      String redisToken = redisComponent.getStringValue(
+          RedisKeyType.BLACK_LIST.getRedisKeyBySubject(subject));
+      if (!accessToken.equals(redisToken)) {
         throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_TOKEN);
       }
 
       Jws<Claims> claims = Jwts.parser()
           .verifyWith(secretKey)
           .build()
-          .parseSignedClaims(token);
+          .parseSignedClaims(accessToken);
       return !claims.getPayload().getExpiration().before(new Date());
     } catch (ExpiredJwtException e) {
       log.error("Expired Token : {}", e.getMessage());
@@ -163,25 +166,26 @@ public class JwtTokenProvider {
   /**
    * 리프레시 토큰의 유효성을 확인
    *
-   * @param token 검증 대상 리프레시 토큰
+   * @param refreshToken 검증 대상 리프레시 토큰
    * @return 토큰이 유효하다면 true
    * @throws ApiException 토큰이 만료되었거나, 유효하지 않으면 예외 발생
    */
-  public boolean validateRefreshToken(String token) {
+  public boolean validateRefreshToken(String refreshToken) {
 
     try {
 
-      String subject = getSubject(token);
-      String redisToken = redisComponent.getStringValue(REFRESH_TOKEN_PREFIX + ":" + subject);
-      if (!token.equals(redisToken)) {
+      String subject = getSubject(refreshToken);
+      String redisToken = redisComponent.getStringValue(
+          RedisKeyType.REFRESH_TOKEN.getRedisKeyBySubject(subject));
+      if (!refreshToken.equals(redisToken)) {
         throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_TOKEN);
       }
 
-      Jwts.parser()
+      Jws<Claims> claims = Jwts.parser()
           .verifyWith(secretKey)
           .build()
-          .parseSignedClaims(token);
-      return true;
+          .parseSignedClaims(refreshToken);
+      return !claims.getPayload().getExpiration().before(new Date());
     } catch (ExpiredJwtException e) {
       log.error("Expired Refresh Token: {}", e.getMessage());
       throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.REFRESH_TOKEN_EXPIRED);
@@ -194,11 +198,11 @@ public class JwtTokenProvider {
   /**
    * 액세스 토큰으로부터 Spring Security Authentication 객체를 제공
    *
-   * @param token 액세스 토큰
+   * @param accessToken 액세스 토큰
    * @return 인증(Authentication) 객체
    */
-  public Authentication getAuthentication(String token) {
-    UserDetails userDetails = userDetailsService.loadUserByUsername(getSubject(token));
+  public Authentication getAuthentication(String accessToken) {
+    UserDetails userDetails = userDetailsService.loadUserByUsername(getSubject(accessToken));
     log.debug("userDetails: {}", userDetails);
     return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
   }
@@ -228,7 +232,7 @@ public class JwtTokenProvider {
   public String getAccessToken(String refreshToken) {
 
     if (!validateRefreshToken(refreshToken)) {
-      throw new ApiException(HttpStatus.BAD_REQUEST, ApiStatus.INVALID_REFRESH_TOKEN);
+      throw new ApiException(HttpStatus.UNAUTHORIZED, ApiStatus.INVALID_REFRESH_TOKEN);
     }
 
     String subject = getSubject(refreshToken);
@@ -242,8 +246,6 @@ public class JwtTokenProvider {
     // 새로운 액세스 토큰 생성
     return createAccessToken(subject, roles);
   }
-
-  // TODO : 123
 
   /**
    * Access Token을 블랙리스트에 추가
@@ -262,8 +264,11 @@ public class JwtTokenProvider {
     long remainingExpiration = claims.getExpiration().getTime()
         - System.currentTimeMillis();
     if (remainingExpiration > 0) {
-      redisComponent.setStringValue(BLACK_LIST_PREFIX + ":" + claims.getSubject(), accessToken,
-          remainingExpiration, TimeUnit.MILLISECONDS
+      redisComponent.setStringValue(
+          RedisKeyType.BLACK_LIST.getRedisKeyBySubject(claims.getSubject()),
+          accessToken,
+          remainingExpiration,
+          TimeUnit.MILLISECONDS
       );
     }
   }

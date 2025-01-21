@@ -8,6 +8,7 @@ import com.sample.cms.auth.dto.AuthDto;
 import com.sample.cms.auth.dto.AuthDto.LogoutRequest;
 import com.sample.cms.common.exception.ApiException;
 import com.sample.cms.common.type.ApiStatus;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -105,12 +107,14 @@ class AuthServiceTest {
   @Transactional
   @DisplayName("Access Token 재발급 성공: 유효한 Refresh Token을 입력하면 새로운 Access Token이 발급")
   @Test
-  void testGetAccessTokenByRefreshTokenSuccess() {
+  void testGetAccessTokenByRefreshTokenSuccess() throws InterruptedException {
 
     // Given
-    String validRefreshToken = getValidRefreshToken();
+    AuthDto.TokenResponse validTokenResponse = getValidToken();
     AuthDto.RefreshTokenRequest refreshTokenRequest =
-        AuthDto.RefreshTokenRequest.of(validRefreshToken);
+        AuthDto.RefreshTokenRequest.of(validTokenResponse.getRefreshToken());
+
+    TimeUnit.SECONDS.sleep(3);
 
     // When
     AuthDto.RefreshTokenResponse refreshTokenResponse =
@@ -120,7 +124,9 @@ class AuthServiceTest {
     // Then
     assertAll(
         () -> assertThat(refreshTokenResponse).isNotNull(),
-        () -> assertThat(refreshTokenResponse.getAccessToken()).isNotNull()
+        () -> assertThat(refreshTokenResponse.getAccessToken()).isNotNull(),
+        () -> assertThat(refreshTokenResponse.getAccessToken()).isNotEqualTo(
+            validTokenResponse.getAccessToken())
     );
   }
 
@@ -141,6 +147,7 @@ class AuthServiceTest {
 
     // Then
     assertAll(
+        () -> assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.UNAUTHORIZED),
         () -> assertThat(exception.getStatus()).isEqualTo(ApiStatus.INVALID_REFRESH_TOKEN)
     );
   }
@@ -152,7 +159,7 @@ class AuthServiceTest {
   void testLogout() {
 
     // Given
-    String accessToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbjAxIiwicm9sZUxpc3QiOlsiUk9MRV9BRE1JTiJdLCJpYXQiOjE3MzczNjE1MTksImV4cCI6MTczNzM2ODcxOX0.PF9FnIBcgCRCFwVKXu702aDC8-QbnFqK1-lMuxi_pEY";
+    String accessToken = "";
     LogoutRequest logoutRequest = LogoutRequest.of(accessToken);
 
     // When
@@ -163,17 +170,17 @@ class AuthServiceTest {
   }
 
   /**
-   * 로그인 요청을 통해 유효한 Refresh Token을 반환
+   * 로그인 요청을 통해 유효한 Token을 반환
    *
-   * @return 로그인 성공으로 발급받은 Refresh Token
+   * @return 로그인 성공으로 발급받은 Token
    */
-  private String getValidRefreshToken() {
+  private AuthDto.TokenResponse getValidToken() {
 
     AuthDto.LoginRequest loginRequest = AuthDto.LoginRequest.of(userId, password);
 
     AuthDto.TokenResponse tokenResponse = authService.getTokenByLogin(loginRequest);
-    log.debug("getValidRefreshToken tokenResponse: {}", tokenResponse);
+    log.debug("getValidToken tokenResponse: {}", tokenResponse);
 
-    return tokenResponse.getRefreshToken();
+    return tokenResponse;
   }
 }
